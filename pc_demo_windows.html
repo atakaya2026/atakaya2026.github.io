@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Atakaya PC Demo - Cursor & Layout Refined</title>
+<style>
+  body { 
+    background: url('images/windows.png') no-repeat center center fixed; 
+    background-size: cover;
+    font-family: 'Segoe UI', 'Pyidaungsu', sans-serif;
+    display: flex; flex-direction: column; align-items: center; 
+    height: 100vh; margin: 0; overflow: hidden;
+  }
+  #notepad-container {
+    width: 85%; max-width: 950px; margin-top: 60px;
+    background: #fff; box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+    border-radius: 5px; overflow: hidden;
+  }
+  .title-bar {
+    background: #4a86e8; color: white; padding: 8px 15px;
+    font-size: 14px; display: flex; justify-content: space-between;
+  }
+  
+  #editor { 
+    height: 380px; padding: 25px; font-size: 38px; border: none; outline: none;
+    white-space: pre-wrap; overflow-y: auto; box-sizing: border-box;
+    position: relative;
+  }
+  #editor::after {
+    content: "|";
+    display: inline-block;
+    color: #000;
+    width: 2px;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+    font-weight: 100;
+  }
+  @keyframes blink {
+    from, to { color: transparent; }
+    50% { color: black; }
+  }
+
+.baby-guide-container {
+  margin-top: 40px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  background: none;       
+  padding: 0;             
+  backdrop-filter: none;  
+  border: none;           
+  position: relative;     
+}
+.keyboard-pc { 
+  transform: scale(0.48); 
+  transform-origin: center;
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px;
+  width: 850px; /* 간격 확보를 위해 가로폭 살짝 조정 */
+  margin-left: -200px; 
+  margin-top: -70px;
+  align-self: flex-start; 
+}
+  .kb-row { display: flex; gap: 8px; width: 100%; }
+  #row2 { padding-left: 35px; } 
+  #row3 { padding-left: 75px; } 
+
+  .key { 
+    width: 65px; height: 65px; background: #fff; border-radius: 8px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    font-size: 24px; font-weight: 800; box-shadow: 0 4px 0 #888;
+    color: #333; position: relative;
+  }
+
+  /* 파란색 구역 스타일 */
+  .key.blue-zone { 
+    background-color: #e0f2fe !important; 
+    border: 1px solid #bae6fd;
+  }
+
+  /* 중앙 간격을 위한 투명한 칸 */
+  .spacer {
+    width: 40px; 
+    height: 65px;
+  }
+
+  .key.multi { 
+    font-size: 28px !important; font-weight: 900; color: #000;
+    white-space: nowrap; 
+    letter-spacing: -1px;
+  }
+  .key.active { transform: translateY(4px); box-shadow: none; background: #eef2ff !important; }
+  .key.plus-active { background: #fca5a5 !important; border: 2px solid #ef4444; }
+  .key.vowel-plus { background-color: #f3e8ff !important; color: #7e22ce; }
+  .key.special-plus { background-color: #f0fdf4 !important; color: #166534; }
+  .key.subtle { font-size: 16px; color: #9ca3af; }
+  .key.func { font-size: 22px; color: #4b5563; }
+
+.baby-label {
+  color: white; 
+  font-size: 18px; 
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
+  position: absolute; 
+  right: 45px;  
+  top: 58%;       
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<button onclick="location.href='index.html'" 
+        style="position: fixed; top: 20px; right: 78px; 
+               padding: 10px 18px; font-size: 1.1em; 
+               background-color: #3f6fb8; color: #fff; 
+               border: none; border-radius: 8px; cursor: pointer; 
+               box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+               z-index: 9999;">
+  Home
+</button>
+<div id="notepad-container">
+  <div class="title-bar"><span>Note</span><span>✕</span></div>
+  <div id="editor" contenteditable="false"></div>
+</div>
+
+<div class="baby-guide-container">
+  <div class="keyboard-pc" id="kbd">
+    <div class="kb-row" id="row1"></div>
+    <div class="kb-row" id="row2"></div>
+    <div class="kb-row" id="row3"></div>
+  </div>
+  <div class="baby-label">ATAKAYA ဘေးဘီး 1.0</div>
+</div>
+
+<script>
+const stepMapRow = {
+    "q": ["ဋ", "ဌ", "ဍ", "ဎ", "ဏ"], "a": ["အ", "ဟ", "ဠ"], "s": ["တ", "ထ", "ဒ", "ဓ"],
+    "d": ["က", "ခ", "ဂ", "ဃ"], "f": ["ယ", "ရ", "လ", "ဝ"], "x": ["စ", "ซ", "ဇ", "ဈ"],
+    "c": ["ပ", "ဖ", "ဗ", "ဘ"]
+};
+const nasalKeys = { "w": "န", "e": "င", "r": "သ", "z": "ည", "v": "မ" }; // v키 복구됨
+const multiTapMap = {
+    "i": ["ိ", "ီ", "ံ"], "j": ["ေ", "ြ"], "k": ["်", "ဲ"], "l": ["ာ", "ါ"],
+    ";": ["း", "့"], "m": ["ှ", "ွ"], ",": ["ု", "ူ"]
+};
+const plusVowels = { "u": "ဤ", "i": "ဣ", "j": "ဧ", "k": "ဩ", "l": "ဪ", "m": "ဦ", ",": "ဥ" };
+const plusSpecials = { "t": "ဉ", "g": "၍", "b": "ဿ", "y": "၌", "h": "၎", "n": "၏" };
+
+const row1 = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"];
+const row2 = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
+const row3 = ["z", "x", "c", "v", "b", "n", "m", ",", "."];
+
+// 2,3,4열 및 7,8,9열 파란색 처리용
+const blueZoneKeys = ["w", "e", "r", "s", "d", "f", "x", "c", "v", "u", "i", "o", "j", "k", "l", "m", ",", "."];
+
+let state = { activeBase: null, currentIndex: 0, lastTapKey: null, tapIndex: 0, isPlusMode: false };
+const editor = document.getElementById('editor');
+
+function renderKey(key) {
+    const k = key.toLowerCase();
+    const div = document.createElement('div');
+    div.className = 'key';
+    if (blueZoneKeys.includes(k)) div.classList.add('blue-zone');
+    div.id = `key-${k}`;
+    return div;
+}
+
+function initKbd() {
+    [row1, row2, row3].forEach((r, i) => {
+        const rowEl = document.getElementById(`row${i+1}`);
+        r.forEach((k, idx) => {
+            rowEl.appendChild(renderKey(k));
+            // 5번째 키 다음에 간격 추가
+            if (idx === 4) {
+                const spacer = document.createElement('div');
+                spacer.className = 'spacer';
+                rowEl.appendChild(spacer);
+            }
+        });
+    });
+    updateKbdUI();
+}
+
+function updateKbdUI() {
+    const allKeys = [...row1, ...row2, ...row3, "p"];
+    allKeys.forEach(k => {
+        const el = document.getElementById(`key-${k}`);
+        if (!el) return;
+        el.classList.remove('plus-active', 'multi', 'vowel-plus', 'special-plus', 'subtle', 'base-key', 'step-key', 'func');
+        
+        let label = k.toUpperCase();
+        if (stepMapRow[k]) { label = stepMapRow[k][0]; el.classList.add('base-key'); }
+        else if (nasalKeys[k]) { label = nasalKeys[k]; }
+        else if (k === '.') { label = "ျ"; }
+        else if (k === 'p') { label = "+"; }
+
+        if (state.isPlusMode) {
+            if (['o', ';', '.'].includes(k)) { label = ""; }
+            else if (plusVowels[k]) { label = plusVowels[k]; el.classList.add('vowel-plus'); }
+            else if (plusSpecials[k]) { label = plusSpecials[k]; el.classList.add('special-plus'); }
+            else if (k === 'p') { el.classList.add('plus-active'); }
+        } else {
+            if (['u','o'].includes(k)) el.classList.add('step-key');
+            if (['t','y','g','h','b','n'].includes(k)) el.classList.add('subtle');
+            if (k === 'u') {
+                if (state.activeBase && stepMapRow[state.activeBase]) {
+                    label = stepMapRow[state.activeBase][state.currentIndex + 1] || "➞";
+                    if (label !== "➞") el.classList.add('multi');
+                } else { label = "➞"; el.classList.add('func'); }
+            } else if (k === 'o') {
+                if (state.activeBase && stepMapRow[state.activeBase]) {
+                    label = stepMapRow[state.activeBase][state.currentIndex + 2] || "➞➞";
+                    if (label !== "➞➞") el.classList.add('multi');
+                } else { label = "➞➞"; el.classList.add('func'); }
+            } else if (multiTapMap[k]) {
+                label = multiTapMap[k].join(" "); el.classList.add('multi');
+            }
+        }
+        el.innerText = label;
+    });
+}
+
+const ZWNJ = "\u200C", VIRAMA = "\u1039";
+
+function handleInput(k) {
+    if (k === 'backspace') {
+        let t = editor.innerText;
+        editor.innerText = t.endsWith(ZWNJ + "ေ") ? t.slice(0, -2) : t.slice(0, -1);
+        resetState(); updateKbdUI(); return;
+    }
+    if (k === 'enter') { editor.innerText += '\n'; resetState(); updateKbdUI(); return; }
+    if (k === 'space' || k === ' ') { editor.innerText += ' '; resetState(); updateKbdUI(); return; }
+    if (k === 'p') { state.isPlusMode = !state.isPlusMode; updateKbdUI(); return; }
+
+    if (state.isPlusMode) {
+        if (['o', ';', '.'].includes(k)) return;
+        let char = plusSpecials[k] || (stepMapRow[k] ? VIRAMA + stepMapRow[k][0] : (nasalKeys[k] ? VIRAMA + nasalKeys[k] : plusVowels[k]));
+        if (char) { 
+            editor.innerText += char; 
+            if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; }
+            state.isPlusMode = false;
+        }
+        updateKbdUI(); return;
+    }
+
+    if (stepMapRow[k] || nasalKeys[k]) {
+        let char = stepMapRow[k] ? stepMapRow[k][0] : nasalKeys[k];
+        if (editor.innerText.endsWith("ေ")) {
+            let iso = editor.innerText.endsWith(ZWNJ + "ေ");
+            editor.innerText = editor.innerText.slice(0, iso ? -2 : -1) + char + "ေ";
+        } else editor.innerText += char;
+        if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; } else resetStep();
+    } 
+    else if ((k === 'u' || k === 'o') && state.activeBase) {
+        let step = k === 'u' ? 1 : 2;
+        let group = stepMapRow[state.activeBase];
+        if (group && group[state.currentIndex + step]) {
+            let t = editor.innerText;
+            if (t.endsWith("ေ")) editor.innerText = t.slice(0, -2) + group[state.currentIndex + step] + "ေ";
+            else editor.innerText = t.slice(0, -1) + group[state.currentIndex + step];
+            state.currentIndex += step;
+        }
+    }
+    else if (multiTapMap[k]) {
+        if (state.lastTapKey === k && state.tapIndex < multiTapMap[k].length - 1) {
+            state.tapIndex++;
+            let val = multiTapMap[k][state.tapIndex];
+            if (k === "j" && val === "ြ") {
+                let t = editor.innerText, iso = t.endsWith(ZWNJ + "ေ");
+                editor.innerText = t.slice(0, iso ? -2 : -1) + "ြ"; 
+            } else editor.innerText = editor.innerText.slice(0, -1) + val;
+        } else {
+            state.lastTapKey = k; state.tapIndex = 0;
+            let val = multiTapMap[k][0];
+            if (val === "ေ" && editor.innerText.length > 0) editor.innerText += ZWNJ + val;
+            else editor.innerText += val;
+        }
+        resetStep();
+    } else if (k === '.') editor.innerText += 'ျ';
+    
+    editor.scrollTop = editor.scrollHeight;
+    updateKbdUI();
+}
+
+window.addEventListener('keydown', (e) => {
+    let k = e.key.toLowerCase();
+    const el = document.getElementById(`key-${k}`);
+    if (el) el.classList.add('active');
+    handleInput(k);
+    if (k !== 'f5' && k !== 'f12') e.preventDefault();
+});
+window.addEventListener('keyup', (e) => {
+    const el = document.getElementById(`key-${e.key.toLowerCase()}`);
+    if (el) el.classList.remove('active');
+});
+
+function resetStep() { state.activeBase = null; state.currentIndex = 0; }
+function resetState() { resetStep(); state.lastTapKey = null; state.tapIndex = 0; state.isPlusMode = false; }
+initKbd();
+</script>
+</body>
+</html>

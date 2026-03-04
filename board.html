@@ -131,7 +131,7 @@
 
 <!-- 글쓰기 버튼 영역 -->
 <div style="max-width:720px;margin:0 auto;padding:0 1.5rem 2rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
-    <button class="btn-primary" onclick="openWriteModal()">✏️ သုံးသပ်ချက် ရေးသားရန်</button>
+    <button class="btn-primary" onclick="goToDemo()">✏️ သုံးသပ်ချက် ရေးသားရန်</button>
 </div>
 
 <!-- 게시글 목록 -->
@@ -199,6 +199,11 @@
         document.getElementById('btnMobile').style.color = device === 'မိုဘိုင်း' ? '#2563eb' : '';
         document.getElementById('btnPC').style.borderColor = device === 'PC' ? '#2563eb' : '#e2e8f0';
         document.getElementById('btnPC').style.color = device === 'PC' ? '#2563eb' : '';
+    }
+
+    function goToDemo() {
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        location.href = isMobile ? 'mobile_demo.html' : 'pc_demo_windows.html';
     }
 
     function openWriteModal() {

@@ -286,6 +286,17 @@ function handleInput(key) {
     state.isPlusMode = false; updateKbdUI(); editor.scrollTop = editor.scrollHeight; return;
 }
 
+    // ── j 연타 확정: pendingE 상태(자음+ZWNJ+ေ)에서 j 연타 → 자음+ြ
+    if (k === "j" && state.pendingE && state.lastTapKey === "j") {
+        let cur = getText();
+        let base = cur.endsWith(ZWNJ + "ေ") ? cur.slice(0, -2) : cur.slice(0, -1);
+        setText(base + "ြ");
+        state.pendingE = false;
+        state.pendingStep = false;
+        state.lastTapKey = "j"; state.tapIndex = 1;
+        editor.scrollTop = editor.scrollHeight; updateKbdUI(); return;
+    }
+
     // ── j 연타 확정: pendingStepE 상태에서 j가 또 들어옴 ────────
     // j → d → j(pendingStepE) → j(여기)
     // 화면 상태: 자음 + ေ + ZWNJ + ေ

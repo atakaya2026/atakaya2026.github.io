@@ -121,6 +121,26 @@
                z-index: 9999;">
   Home
 </button>
+
+<button onclick="resetEditor()"
+        style="position: fixed; top: 20px; right: 300px;
+               padding: 10px 18px; font-size: 1.1em;
+               background-color: #6b7280; color: #fff;
+               border: none; border-radius: 8px; cursor: pointer;
+               box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+               z-index: 9999;">
+  ↺ ပြန်ရှင်းရန်
+</button>
+
+<button onclick="goToBoard()"
+        style="position: fixed; top: 20px; right: 438px;
+               padding: 10px 18px; font-size: 1.1em;
+               background-color: #16a34a; color: #fff;
+               border: none; border-radius: 8px; cursor: pointer;
+               box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+               z-index: 9999;">
+  💬 သုံးသပ်ချက် တင်ရန်
+</button>
 <div id="notepad-container">
   <div class="title-bar"><span>Note</span><span>✕</span></div>
   <div id="editor" contenteditable="false"></div>
@@ -422,6 +442,23 @@ window.addEventListener('keyup', (e) => {
 
 function resetStep() { state.activeBase = null; state.currentIndex = 0; }
 function resetState() { resetStep(); state.lastTapKey = null; state.tapIndex = 0; state.isPlusMode = false; }
+
+function resetEditor() {
+    setText('');
+    resetState();
+    updateKbdUI();
+}
+
+function goToBoard() {
+    const content = getText().trim();
+    if (!content) {
+        alert('မည်သည့်စာမျှ မရေးရသေးပါ။ အတကယဖြင့် တစ်ခုခု ရေးကြည့်ပါ!');
+        return;
+    }
+    const encoded = encodeURIComponent(content);
+    location.href = `board.html?from=pc&content=${encoded}`;
+}
+
 initKbd();
 </script>
 </body>

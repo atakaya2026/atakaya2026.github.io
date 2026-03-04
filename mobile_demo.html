@@ -50,9 +50,26 @@
   .btn-123 { grid-column: span 2; background: #8e8e93; height: 50px; border-radius: 6px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 1px #888; cursor: pointer; font-weight: bold; }
   .btn-space { grid-column: span 4; background: #ffffff; height: 50px; border-radius: 6px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 1px #888; cursor: pointer; font-weight: bold; font-size: 14px; }
   .btn-enter { grid-column: span 2; background: #8e8e93; height: 50px; border-radius: 6px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 1px #888; cursor: pointer; font-weight: bold; }
+  #action-bar {
+    display: flex; gap: 8px; padding: 8px 10px;
+    background: #e5e7eb; border-bottom: 1px solid #ccc;
+    justify-content: flex-end;
+  }
+  .action-btn {
+    padding: 6px 14px; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .action-btn.reset { background: #6b7280; color: #fff; }
+  .action-btn.post  { background: #16a34a; color: #fff; }
+  .action-btn.home  { background: #3f6fb8; color: #fff; }
 </style>
 </head>
 <body>
+<div id="action-bar">
+  <button class="action-btn home" onclick="location.href='index.html'">Home</button>
+  <button class="action-btn reset" onclick="resetEditor()">↺ ပြန်ရှင်းရန်</button>
+  <button class="action-btn post" onclick="goToBoard()">💬 သုံးသပ်ချက် တင်ရန်</button>
+</div>
 <div id="editor"></div>
 <div class="keyboard-container">
   <div class="keyboard" id="kbd"></div>
@@ -352,6 +369,23 @@ function resetState() {
     state.isPlusMode = false;
     state.pendingE = false; state.pendingStep = false; state.pendingStepE = false;
 }
+
+function resetEditor() {
+    setText('');
+    resetState();
+    render();
+}
+
+function goToBoard() {
+    const content = getText().trim();
+    if (!content) {
+        alert('မည်သည့်စာမျှ မရေးရသေးပါ။ အတကယဖြင့် တစ်ခုခု ရေးကြည့်ပါ!');
+        return;
+    }
+    const encoded = encodeURIComponent(content);
+    location.href = `board.html?from=mobile&content=${encoded}`;
+}
+
 render();
 </script>
 </body>

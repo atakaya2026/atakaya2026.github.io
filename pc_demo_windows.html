@@ -266,6 +266,7 @@ function handleInput(key) {
     if (k === 'p') {
         // pendingStepE 중이면 임시 ေ 정리
         if (state.pendingStepE) { setText(t.slice(0, -2)); state.pendingStepE = false; }
+        resetStep();
         state.isPlusMode = !state.isPlusMode; updateKbdUI(); return;
     }
 
@@ -329,6 +330,7 @@ function handleInput(key) {
             setText(t + char);
             state.pendingStep = false;
             state.pendingE = false;
+            state.lastTapKey = null; state.tapIndex = 0;
         }
 
         if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; }
@@ -347,6 +349,7 @@ function handleInput(key) {
                 setText(cur.slice(0, -1) + group[targetIdx]);
             }
             state.currentIndex = targetIdx;
+            state.lastTapKey = null; state.tapIndex = 0;
         }
 
     // ── 멀티탭 키 ────────────────────────────────────────────

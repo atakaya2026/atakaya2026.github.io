@@ -419,6 +419,7 @@ function handleInput(key) {
     // ── 기타 키 ─────────────────────────────────────────────
     } else {
     if (k === 'u' || k === 'o') return; // activeBase 없으면 무시
+    if (k === 'enter') { setText(t + '\n'); resetState(); return; }
     setText(t + (k === '.' ? 'ျ' : key));
     resetState();
 }
@@ -428,8 +429,11 @@ function handleInput(key) {
 }
 
 
+const ignoredKeys = new Set(['shift','control','alt','meta','capslock','tab','escape','arrowleft','arrowright','arrowup','arrowdown','f1','f2','f3','f4','f6','f7','f8','f9','f10','f11']);
+
 window.addEventListener('keydown', (e) => {
     let k = e.key.toLowerCase();
+    if (ignoredKeys.has(k)) return;
     const el = document.getElementById(`key-${k}`);
     if (el) el.classList.add('active');
     handleInput(k);

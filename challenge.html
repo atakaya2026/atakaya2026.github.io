@@ -381,6 +381,7 @@ function handleInput(key) {
       state.tapIndex++;
       let val = multiTapMap[k][state.tapIndex];
       if (k==="." && state.pendingStep) setText(getText().slice(0,-2)+val+"ေ");
+      else if (state.pendingStep) setText(getText().slice(0,-2)+val+"ေ");
       else setText(getText().slice(0,-1)+val);
       if (k!=="j") { resetStep(); state.pendingStep = false; }
     } else {
@@ -389,8 +390,16 @@ function handleInput(key) {
       if (k==="j") {
         setText(getText()+ZWNJ+val);
         state.pendingE = true; state.pendingStep = false; resetStep();
-      } else if (k==="." && state.pendingStep) {
+      } else if (state.pendingStep) {
+        // 자음+ေ 상태에서 ှ/ွ/ု/ူ/ြ/ျ → 자음+부호+ေ 재조립
         setText(getText().slice(0,-1)+val+"ေ");
+        // pendingStep 유지
+      } else if (state.pendingE) {
+        // j 입력 후 자음 전 → 부호를 자음 앞에, ေ는 뒤로
+        let cur = getText();
+        let base = cur.endsWith(ZWNJ+"ေ") ? cur.slice(0,-2) : cur.slice(0,-1);
+        setText(base+val+"ေ");
+        state.pendingE = false; state.pendingStep = true;
       } else {
         setText(getText()+val);
         resetStep(); state.pendingStep = false;

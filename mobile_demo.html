@@ -300,6 +300,10 @@ function handleInput(key) {
                 let cur = getText();
                 let withoutLast = cur.slice(0, -2); // 이전부호+ေ 제거
                 setText(withoutLast + val + "ေ");
+            } else if (state.pendingStep) {
+                // m/, 연속탭: 자음+이전부호+ေ → 자음+새부호+ေ
+                let cur = getText();
+                setText(cur.slice(0, -2) + val + "ေ");
             } else {
                 setText(getText().slice(0, -1) + val);
             }
@@ -315,12 +319,17 @@ function handleInput(key) {
                 state.pendingE = true;
                 state.pendingStep = false;
                 resetStep();
-            } else if (k === "." && state.pendingStep) {
-                // 자음+ေ 상태에서 ြ/ျ → 자음+ြ/ျ+ေ 재조립
+            } else if (state.pendingStep) {
+                // 자음+ေ 상태에서 ှ/ွ/ု/ူ/ြ/ျ → 자음+부호+ေ 재조립
                 let cur = getText();
-                let withoutE = cur.slice(0, -1);
-                setText(withoutE + val + "ေ");
+                setText(cur.slice(0, -1) + val + "ေ");
                 // pendingStep 유지
+            } else if (state.pendingE) {
+                // j 입력 후 자음 전 → 부호를 자음 앞에, ေ는 뒤로
+                let cur = getText();
+                let base = cur.endsWith(ZWNJ + "ေ") ? cur.slice(0, -2) : cur.slice(0, -1);
+                setText(base + val + "ေ");
+                state.pendingE = false; state.pendingStep = true;
             } else {
                 setText(getText() + val);
                 resetStep(); // 모음 결합 시 무브키 항상 리셋

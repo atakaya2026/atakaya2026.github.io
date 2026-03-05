@@ -195,7 +195,7 @@ const getText = () => editor.innerText;
 const setText = t => { editor.innerText = t; };
 const stepMapRow = {
     "q": ["ဋ", "ဌ", "ဍ", "ဎ", "ဏ"], "a": ["အ", "ဟ", "ဠ"], "s": ["တ", "ထ", "ဒ", "ဓ"],
-    "d": ["က", "ခ", "ဂ", "ဃ"], "f": ["ယ", "ရ", "လ", "ဝ"], "x": ["စ", "ซ", "ဇ", "ဈ"],
+    "d": ["က", "ခ", "ဂ", "ဃ"], "f": ["ယ", "ရ", "လ", "ဝ"], "x": ["စ", "ဆ", "ဇ", "ဈ"],
     "c": ["ပ", "ဖ", "ဗ", "ဘ"]
 };
 const nasalKeys = { "w": "န", "e": "င", "r": "သ", "z": "ည", "v": "မ" }; // v키 복구됨
@@ -269,15 +269,9 @@ function updateKbdUI() {
             if (['u','o'].includes(k)) el.classList.add('step-key');
             if (['t','y','g','h','b','n'].includes(k)) el.classList.add('subtle');
             if (k === 'u') {
-                if (state.activeBase && stepMapRow[state.activeBase]) {
-                    label = stepMapRow[state.activeBase][state.currentIndex + 1] || "➞";
-                    if (label !== "➞") el.classList.add('multi');
-                } else { label = "➞"; el.classList.add('func'); }
+                label = "➞"; el.classList.add('func');
             } else if (k === 'o') {
-                if (state.activeBase && stepMapRow[state.activeBase]) {
-                    label = stepMapRow[state.activeBase][state.currentIndex + 2] || "➞➞";
-                    if (label !== "➞➞") el.classList.add('multi');
-                } else { label = "➞➞"; el.classList.add('func'); }
+                label = "➞➞"; el.classList.add('func');
             } else if (multiTapMap[k]) {
                 label = multiTapMap[k].join(" "); el.classList.add('multi');
             }
@@ -398,6 +392,11 @@ function handleInput(key) {
                 let cur = getText();
                 let withoutLast = cur.slice(0, -2); // 이전부호+ေ 제거
                 setText(withoutLast + val + "ေ");
+            } else if (state.pendingStep) {
+                // m(ှ/ွ), ,(ု/ူ) 연속탭 상태에서 자음+부호+ေ → 부호만 교체
+                let cur = getText();
+                let withoutLast = cur.slice(0, -2); // 이전부호+ေ 제거
+                setText(withoutLast + val + "ေ");
             } else {
                 setText(getText().slice(0, -1) + val);
             }
@@ -413,12 +412,20 @@ function handleInput(key) {
                 state.pendingE = true;
                 state.pendingStep = false;
                 resetStep();
-            } else if (k === "." && state.pendingStep) {
-                // 자음+ေ 상태에서 ြ/ျ → 자음+ြ/ျ+ေ 재조립
+            } else if (state.pendingStep) {
+                // 자음+ေ 상태에서 ှ/ွ/ု/ူ/ြ/ျ → 자음+부호+ေ 재조립
                 let cur = getText();
-                let withoutE = cur.slice(0, -1);
+                let withoutE = cur.slice(0, -1); // ေ 제거
                 setText(withoutE + val + "ေ");
                 // pendingStep 유지
+            } else if (state.pendingE) {
+                // ေ 선입력 대기 중 (j 입력 후 자음 전) → 부호를 자음 앞에, ေ는 뒤로
+                // 해당 키: m(ှ/ွ), ,(ု/ူ), .(ြ/ျ)
+                let cur = getText();
+                let base = cur.endsWith(ZWNJ + "ေ") ? cur.slice(0, -2) : cur.slice(0, -1);
+                setText(base + val + "ေ");
+                state.pendingE = false;
+                state.pendingStep = true;
             } else {
                 setText(getText() + val);
                 resetStep(); // 모음 결합 시 무브키 항상 리셋

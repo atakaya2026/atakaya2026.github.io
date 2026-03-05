@@ -165,8 +165,8 @@ const stepMapRow = {
 };
 const nasalKeys = { "w": "န", "e": "င", "r": "သ", "z": "ည", "v": "မ" }; // v키 복구됨
 const multiTapMap = {
-    "i": ["ိ", "ီ", "ဲ"], "j": ["ေ", "ြ"], "k": ["်", "ံ"], "l": ["ာ", "ါ"],
-    ";": ["း", "့"], "m": ["ှ", "ွ"], ",": ["ု", "ူ"]
+    "i": ["ိ", "ီ", "ဲ"], "j": ["ေ"], "k": ["်", "ံ"], "l": ["ာ", "ါ"],
+    ";": ["း", "့"], "m": ["ှ", "ွ"], ",": ["ု", "ူ"], ".": ["ြ", "ျ"]
 };
 const plusVowels = { "u": "ဤ", "i": "ဣ", "j": "ဧ", "k": "ဩ", "l": "ဪ", "m": "ဦ", ",": "ဥ" };
 const plusSpecials = { "t": "ဉ", "g": "၍", "b": "ဿ", "y": "၌", "h": "၎", "n": "၏" };
@@ -223,11 +223,10 @@ function updateKbdUI() {
         let label = k.toUpperCase();
         if (stepMapRow[k]) { label = stepMapRow[k][0]; el.classList.add('base-key'); }
         else if (nasalKeys[k]) { label = nasalKeys[k]; }
-        else if (k === '.') { label = "ျ"; }
         else if (k === 'p') { label = "+"; }
 
         if (state.isPlusMode) {
-            if (['o', ';', '.'].includes(k)) { label = ""; }
+            if (['o', ';'].includes(k)) { label = ""; }
             else if (plusVowels[k]) { label = plusVowels[k]; el.classList.add('vowel-plus'); }
             else if (plusSpecials[k]) { label = plusSpecials[k]; el.classList.add('special-plus'); }
             else if (k === 'p') { el.classList.add('plus-active'); }
@@ -292,7 +291,7 @@ function handleInput(key) {
 
     // ── plus 모드 ────────────────────────────────────────────
     if (state.isPlusMode) {
-    if (['o', ';', '.'].includes(k)) { return; }
+    if (['o', ';'].includes(k)) { return; }
     if (plusSpecials[k]) {
         setText(getText() + plusSpecials[k]);
     } else if (stepMapRow[k]) {
@@ -305,35 +304,6 @@ function handleInput(key) {
     }
     state.isPlusMode = false; updateKbdUI(); editor.scrollTop = editor.scrollHeight; return;
 }
-
-    // ── j 연타 확정: pendingE 상태(자음+ZWNJ+ေ)에서 j 연타 → 자음+ြ
-    if (k === "j" && state.pendingE && state.lastTapKey === "j") {
-        let cur = getText();
-        let base = cur.endsWith(ZWNJ + "ေ") ? cur.slice(0, -2) : cur.slice(0, -1);
-        setText(base + "ြ");
-        state.pendingE = false;
-        state.pendingStep = false;
-        state.lastTapKey = "j"; state.tapIndex = 1;
-        editor.scrollTop = editor.scrollHeight; updateKbdUI(); return;
-    }
-
-    // ── j 연타 확정: pendingStepE 상태에서 j가 또 들어옴 ────────
-    // j → d → j(pendingStepE) → j(여기)
-    // 화면 상태: 자음 + ေ + ZWNJ + ေ
-    // 목표:      자음 + ြ + ေ
-    if (k === "j" && state.pendingStepE) {
-        // 뒤에서: ZWNJ+ေ 제거 → ေ 제거 → 자음 읽기 → 자음+ြ+ေ 재조립
-        let cur = getText();
-        // cur 끝: ...자음 + ေ + ZWNJ + ေ  (각 1코드포인트 또는 2)
-        let withoutTempE = cur.slice(0, -2);          // ZWNJ+ေ 제거
-        let withoutE     = withoutTempE.slice(0, -1); // 자음+ေ의 ေ 제거
-        // withoutE 끝이 자음
-        setText(withoutE + "ြ" + "ေ");
-        state.pendingStepE = false;
-        state.pendingStep = true;  // 여전히 자음+ေ(+ြ) 상태
-        state.lastTapKey = "j"; state.tapIndex = 1; // ြ가 index 1
-        editor.scrollTop = editor.scrollHeight; updateKbdUI(); return;
-    }
 
     // ── pendingStepE 상태에서 j 외 다른 키 → 임시 ေ 확정(새 글자 시작) ─
     if (state.pendingStepE && k !== "j") {
@@ -389,7 +359,13 @@ function handleInput(key) {
             // 연속 탭 → 다음 값으로 교체
             state.tapIndex++;
             let val = multiTapMap[k][state.tapIndex];
-            setText(getText().slice(0, -1) + val);
+            if (k === "." && state.pendingStep) {
+                let cur = getText();
+                let withoutLast = cur.slice(0, -2); // 이전부호+ေ 제거
+                setText(withoutLast + val + "ေ");
+            } else {
+                setText(getText().slice(0, -1) + val);
+            }
             if (k !== "j") { resetStep(); state.pendingStep = false; }
         } else {
             // 첫 탭 또는 다른 키에서 전환
@@ -397,18 +373,17 @@ function handleInput(key) {
             let val = multiTapMap[k][0];
 
             if (k === "j") {
-                if (state.pendingStep) {
-                    // 자음+ေ 완성 상태에서 j → 임시 ZWNJ+ေ 추가, pendingStepE 진입
-                    setText(getText() + ZWNJ + "ေ");
-                    state.pendingStepE = true;
-					resetStep(); // 무브키 리셋
-                } else {
-                    // 일반 j 1탭 → pendingE 진입
-                    setText(getText() + ZWNJ + val);
-                    state.pendingE = true;
-                    state.pendingStep = false;
-                    resetStep();
-                }
+                // j → pendingE 진입
+                setText(getText() + ZWNJ + val);
+                state.pendingE = true;
+                state.pendingStep = false;
+                resetStep();
+            } else if (k === "." && state.pendingStep) {
+                // 자음+ေ 상태에서 ြ/ျ → 자음+ြ/ျ+ေ 재조립
+                let cur = getText();
+                let withoutE = cur.slice(0, -1);
+                setText(withoutE + val + "ေ");
+                // pendingStep 유지
             } else {
                 setText(getText() + val);
                 resetStep(); // 모음 결합 시 무브키 항상 리셋
@@ -420,7 +395,7 @@ function handleInput(key) {
     } else {
     if (k === 'u' || k === 'o') return; // activeBase 없으면 무시
     if (k === 'enter') { setText(t + '\n'); resetState(); return; }
-    setText(t + (k === '.' ? 'ျ' : key));
+    setText(t + key);
     resetState();
 }
 

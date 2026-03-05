@@ -34,6 +34,12 @@
             font-size: 0.7rem; font-weight: 700;
             padding: 2px 10px; border-radius: 999px;
         }
+        .badge-challenge {
+            background: #fef9c3; color: #854d0e;
+            font-size: 0.7rem; font-weight: 700;
+            padding: 2px 10px; border-radius: 999px;
+            border: 1px solid #fcd34d;
+        }
 
         .btn-primary {
             background: var(--blue); color: white;
@@ -190,7 +196,7 @@
 
     // URL 파라미터 확인 (체험기에서 넘어온 경우)
     const urlParams = new URLSearchParams(window.location.search);
-    const fromDemo = urlParams.get('from'); // 'mobile' or 'pc'
+    const fromDemo = urlParams.get('from'); // 'mobile', 'pc', 'challenge'
     const prefillContent = urlParams.get('content') || '';
 
     function selectDevice(device) {
@@ -210,7 +216,7 @@
         document.getElementById('writeModal').classList.add('open');
         // 체험기에서 넘어온 경우 자동 세팅
         if (fromDemo === 'mobile') selectDevice('မိုဘိုင်း');
-        if (fromDemo === 'pc') selectDevice('PC');
+        if (fromDemo === 'pc' || fromDemo === 'challenge') selectDevice('PC');
         if (prefillContent) document.getElementById('inputContent').value = decodeURIComponent(prefillContent);
     }
 
@@ -231,6 +237,7 @@
 
         const nickname = document.getElementById('inputNickname').value.trim() || 'မ익်မသိ';
         const device = selectedDevice || 'မသိ';
+        const is_challenge = fromDemo === 'challenge';
 
         const btn = document.getElementById('submitBtn');
         btn.textContent = 'တင်နေသည်...';
@@ -245,7 +252,7 @@
                     'Authorization': `Bearer ${SUPABASE_KEY}`,
                     'Prefer': 'return=minimal'
                 },
-                body: JSON.stringify({ nickname, content, device })
+                body: JSON.stringify({ nickname, content, device, is_challenge })
             });
 
             if (!res.ok) throw new Error();
@@ -296,7 +303,10 @@
                 <div class="card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem;">
                         <div class="review-nickname">${escapeHtml(r.nickname || 'မမည်သိ')}</div>
-                        <span class="${r.device === 'PC' ? 'badge-pc' : 'badge-mobile'}">${r.device === 'PC' ? '💻 PC' : '📱 မိုဘိုင်း'}</span>
+                        <div style="display:flex;gap:0.4rem;align-items:center;">
+                            ${r.is_challenge ? '<span class="badge-challenge">👑 ကီးမပ်မပါ</span>' : ''}
+                            <span class="${r.device === 'PC' ? 'badge-pc' : 'badge-mobile'}">${r.device === 'PC' ? '💻 PC' : '📱 မိုဘိုင်း'}</span>
+                        </div>
                     </div>
                     <div class="review-content">${escapeHtml(r.content)}</div>
                     <div class="review-meta">${formatDate(r.created_at)}</div>

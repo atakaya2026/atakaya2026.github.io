@@ -41,6 +41,29 @@
     50% { color: black; }
   }
 
+  /* ── 미니 내비 ── */
+  #step-nav {
+    position: fixed;
+    display: none;
+    flex-direction: row;
+    z-index: 9000;
+    pointer-events: none;
+    border: 1px solid #bbb;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  #step-nav.visible { display: flex; }
+  .snav-cell {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Pyidaungsu', 'Myanmar Text', sans-serif;
+    font-size: 20px;
+    background: #f3f3f3;
+    box-sizing: border-box;
+    border-right: 1px solid #ddd;
+  }
+  .snav-cell:last-child { border-right: none; }
+  .snav-cell.active { background: #ddeeff; }
+
 .baby-guide-container {
   margin-top: 40px; 
   display: flex; 
@@ -141,6 +164,8 @@
                z-index: 9999;">
   💬 သုံးသပ်ချက် တင်ရန်
 </button>
+<div id="step-nav"></div>
+
 <div id="notepad-container">
   <div class="title-bar"><span>Note</span><span>✕</span></div>
   <div id="editor" contenteditable="false"></div>
@@ -288,7 +313,7 @@ function handleInput(key) {
         } else {
             setText(t.slice(0, -1));
         }
-        resetStep(); updateKbdUI(); editor.scrollTop = editor.scrollHeight; return;
+        resetStep(); updateKbdUI(); editor.scrollTop = editor.scrollHeight; afterInput(); return;
     }
 
     // ── p: plus 모드 토글 ────────────────────────────────────
@@ -296,7 +321,7 @@ function handleInput(key) {
         // pendingStepE 중이면 임시 ေ 정리
         if (state.pendingStepE) { setText(t.slice(0, -2)); state.pendingStepE = false; }
         resetStep();
-        state.isPlusMode = !state.isPlusMode; updateKbdUI(); return;
+        state.isPlusMode = !state.isPlusMode; updateKbdUI(); afterInput(); return;
     }
 
     // ── plus 모드 ────────────────────────────────────────────
@@ -312,7 +337,7 @@ function handleInput(key) {
     } else if (plusVowels[k]) {
         setText(getText() + plusVowels[k]);
     }
-    state.isPlusMode = false; updateKbdUI(); editor.scrollTop = editor.scrollHeight; return;
+    state.isPlusMode = false; updateKbdUI(); editor.scrollTop = editor.scrollHeight; afterInput(); return;
 }
 
     // ── pendingStepE 상태에서 j 외 다른 키 → 임시 ေ 확정(새 글자 시작) ─
@@ -404,13 +429,14 @@ function handleInput(key) {
     // ── 기타 키 ─────────────────────────────────────────────
     } else {
     if (k === 'u' || k === 'o') return; // activeBase 없으면 무시
-    if (k === 'enter') { setText(t + '\n'); resetState(); return; }
+    if (k === 'enter') { setText(t + '\n'); resetState(); updateKbdUI(); afterInput(); return; }
     setText(t + key);
     resetState();
 }
 
     editor.scrollTop = editor.scrollHeight;
     updateKbdUI();
+    afterInput();
 }
 
 
@@ -431,6 +457,54 @@ window.addEventListener('keyup', (e) => {
 
 function resetStep() { state.activeBase = null; state.currentIndex = 0; }
 function resetState() { resetStep(); state.lastTapKey = null; state.tapIndex = 0; state.isPlusMode = false; }
+
+// ── 미니 내비 ──────────────────────────────────────────────
+const stepNav = document.getElementById('step-nav');
+
+function getCaretRect() {
+    const marker = document.createElement('span');
+    marker.textContent = '\u200B';
+    editor.appendChild(marker);
+    const rect = marker.getBoundingClientRect();
+    editor.removeChild(marker);
+    return rect;
+}
+
+function showStepNav() {
+    if (!state.activeBase || !stepMapRow[state.activeBase]) { hideStepNav(); return; }
+    const group = stepMapRow[state.activeBase];
+    const idx = state.currentIndex;
+
+    stepNav.innerHTML = '';
+    group.forEach((ch, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'snav-cell' + (i === idx ? ' active' : '');
+        cell.textContent = ch;
+        stepNav.appendChild(cell);
+    });
+
+    const rect = getCaretRect();
+    const navW = group.length * 37;
+    const navH = 37;
+    let left = rect.left;
+    let top  = rect.bottom + 6;
+    if (left + navW > window.innerWidth  - 8) left = window.innerWidth  - navW - 8;
+    if (top  + navH > window.innerHeight - 4) top  = rect.top - navH - 6;
+    if (left < 4) left = 4;
+
+    stepNav.style.left = left + 'px';
+    stepNav.style.top  = top  + 'px';
+    stepNav.classList.add('visible');
+}
+
+function hideStepNav() { stepNav.classList.remove('visible'); }
+
+function afterInput() {
+    requestAnimationFrame(() => {
+        if (state.activeBase && !state.isPlusMode) showStepNav();
+        else hideStepNav();
+    });
+}
 
 function resetEditor() {
     setText('');

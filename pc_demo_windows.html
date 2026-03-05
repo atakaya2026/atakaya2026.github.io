@@ -417,7 +417,7 @@ function handleInput(key) {
                 let cur = getText();
                 let withoutE = cur.slice(0, -1); // ေ 제거
                 setText(withoutE + val + "ေ");
-                // pendingStep 유지
+                resetStep(); // 미니내비 닫기
             } else if (state.pendingE) {
                 // ေ 선입력 대기 중 (j 입력 후 자음 전) → 부호를 자음 앞에, ေ는 뒤로
                 // 해당 키: m(ှ/ွ), ,(ု/ူ), .(ြ/ျ)

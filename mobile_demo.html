@@ -323,7 +323,7 @@ function handleInput(key) {
                 // 자음+ေ 상태에서 ှ/ွ/ု/ူ/ြ/ျ → 자음+부호+ေ 재조립
                 let cur = getText();
                 setText(cur.slice(0, -1) + val + "ေ");
-                // pendingStep 유지
+                resetStep(); // 화살표 키 동적 표시 리셋
             } else if (state.pendingE) {
                 // j 입력 후 자음 전 → 부호를 자음 앞에, ေ는 뒤로
                 let cur = getText();

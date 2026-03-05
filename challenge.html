@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Atakaya PC Demo</title>
+<style>
+  body { 
+    background: url('images/windows.png') no-repeat center center fixed; 
+    background-size: cover;
+    font-family: 'Segoe UI', 'Pyidaungsu', sans-serif;
+    display: flex; flex-direction: column; align-items: center; 
+    height: 100vh; margin: 0; overflow: hidden;
+  }
+  #notepad-container {
+    width: 85%; max-width: 950px; margin-top: 60px;
+    background: #fff; box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+    border-radius: 5px; overflow: hidden;
+  }
+  .title-bar {
+    background: #4a86e8; color: white; padding: 8px 15px;
+    font-size: 14px; display: flex; justify-content: space-between;
+  }
+  #editor { 
+    height: 420px; padding: 25px; font-size: 38px; border: none; outline: none;
+    white-space: pre-wrap; overflow-y: auto; box-sizing: border-box;
+  }
+  #editor::after {
+    content: "|";
+    display: inline-block;
+    color: #000;
+    width: 2px;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+    font-weight: 100;
+  }
+  @keyframes blink {
+    from, to { color: transparent; }
+    50% { color: black; }
+  }
+
+  /* ── 스텝맵 내비: AHK ShowStepMap과 동일한 고정 셀 방식 ── */
+  #step-nav {
+    position: fixed;
+    display: none;
+    flex-direction: row;
+    z-index: 9000;
+    pointer-events: none;
+    border: 1px solid #bbb;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  #step-nav.visible { display: flex; }
+  .snav-cell {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Pyidaungsu', 'Myanmar Text', sans-serif;
+    font-size: 20px;
+    background: #f3f3f3;
+    box-sizing: border-box;
+    border-right: 1px solid #ddd;
+  }
+  .snav-cell:last-child { border-right: none; }
+  .snav-cell.active { background: #ddeeff; }
+
+  /* ── Plus 모드 플로팅 키맵 ── */
+  #plus-popup {
+    position: fixed;
+    display: none;
+    z-index: 9001;
+    background: #9aa3bb;
+    border-radius: 14px;
+    box-shadow: 0 10px 36px rgba(0,0,0,0.45);
+    padding: 12px;
+    pointer-events: none;
+  }
+  #plus-popup.visible { display: block; }
+
+  .keyboard-pc {
+    transform: scale(0.48);
+    transform-origin: top left;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 850px;
+  }
+  /* scale로 줄어든 실제 크기만큼 컨테이너 높이 확보 */
+  #pp-kbd-wrap {
+    width: calc(850px * 0.48);
+    height: calc((65px * 3 + 8px * 2) * 0.48);
+    overflow: visible;
+  }
+  .kb-row { display: flex; gap: 8px; width: 100%; }
+  #pp-row2 { padding-left: 35px; }
+  #pp-row3 { padding-left: 75px; }
+
+  .key {
+    width: 65px; height: 65px; background: #f0f2f8; border-radius: 8px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    font-size: 24px; font-weight: 800; box-shadow: 0 4px 0 #6a748a;
+    color: #333; position: relative;
+  }
+  /* 2,3,4번 열 + 7,8,9번 열만 하늘색 */
+  .key.blue-zone { background-color: #bde8fb !important; box-shadow: 0 4px 0 #6ab8d8; }
+  .spacer { width: 40px; height: 65px; }
+  .key.multi { font-size: 28px !important; font-weight: 900; color: #000; white-space: nowrap; letter-spacing: -1px; }
+  .key.active { transform: translateY(4px); box-shadow: none; background: #eef2ff !important; }
+  .key.plus-active { background: #fca5a5 !important; box-shadow: 0 4px 0 #c05050; border: 2px solid #ef4444; }
+  .key.vowel-plus { background-color: #f3e8ff !important; color: #7e22ce; box-shadow: 0 4px 0 #a07abf; }
+  .key.special-plus { background-color: #dcfce7 !important; color: #166534; box-shadow: 0 4px 0 #7ab890; }
+  .key.subtle { font-size: 16px; color: #9ca3af; }
+  .key.func { font-size: 22px; color: #4b5563; }
+</style>
+</head>
+<body>
+
+<button onclick="location.href='index.html'" 
+        style="position:fixed;top:20px;right:78px;padding:10px 18px;font-size:1.1em;
+               background:#3f6fb8;color:#fff;border:none;border-radius:8px;cursor:pointer;
+               box-shadow:0 2px 6px rgba(0,0,0,0.15);z-index:9999;">Home</button>
+
+<button onclick="resetEditor()"
+        style="position:fixed;top:20px;right:300px;padding:10px 18px;font-size:1.1em;
+               background:#6b7280;color:#fff;border:none;border-radius:8px;cursor:pointer;
+               box-shadow:0 2px 6px rgba(0,0,0,0.15);z-index:9999;">↺ ပြန်ရှင်းရန်</button>
+
+<button onclick="goToBoard()"
+        style="position:fixed;top:20px;right:438px;padding:10px 18px;font-size:1.1em;
+               background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;
+               box-shadow:0 2px 6px rgba(0,0,0,0.15);z-index:9999;">💬 သုံးသပ်ချက် တင်ရန်</button>
+
+<!-- 스텝맵 내비 -->
+<div id="step-nav"></div>
+
+<!-- Plus 모드 플로팅 키맵 -->
+<div id="plus-popup">
+  <div id="pp-kbd-wrap">
+    <div class="keyboard-pc" id="pp-kbd">
+      <div class="kb-row" id="pp-row1"></div>
+      <div class="kb-row" id="pp-row2"></div>
+      <div class="kb-row" id="pp-row3"></div>
+    </div>
+  </div>
+</div>
+
+<div id="notepad-container">
+  <div class="title-bar"><span>Note</span><span>✕</span></div>
+  <div id="editor" contenteditable="false"></div>
+</div>
+
+<script>
+// ── 데이터 ─────────────────────────────────────────────────
+const stepMapRow = {
+  q:["ဋ","ဌ","ဍ","ဎ","ဏ"], a:["အ","ဟ","ဠ"],
+  s:["တ","ထ","ဒ","ဓ"],     d:["က","ခ","ဂ","ဃ"],
+  f:["ယ","ရ","လ","ဝ"],     x:["စ","ဆ","ဇ","ဈ"],
+  c:["ပ","ဖ","ဗ","ဘ"]
+};
+const nasalKeys   = { w:"န", e:"င", r:"သ", z:"ည", v:"မ" };
+const multiTapMap = {
+  i:["ိ","ီ","ဲ"], j:["ေ"], k:["်","ံ"], l:["ာ","ါ"],
+  ";":["း","့"], m:["ှ","ွ"], ",":["ု","ူ"], ".":["ြ","ျ"]
+};
+const plusVowels   = { u:"ဤ", i:"ဣ", j:"ဧ", k:"ဩ", l:"ဪ", m:"ဦ", ",":"ဥ" };
+const plusSpecials = { t:"ဉ", g:"၍", b:"ဿ", y:"၌", h:"၎", n:"၏" };
+
+// Plus 팝업 키맵 초기화 (원본 키맵 그대로)
+const row1 = ["q","w","e","r","t","y","u","i","o","p"];
+const row2 = ["a","s","d","f","g","h","j","k","l",";"];
+const row3 = ["z","x","c","v","b","n","m",",","."];
+// 열 2,3,4 + 7,8,9만 하늘색
+const blueZoneKeys = [
+  "w","e","r",   // row1 col 2,3,4
+  "u","i","o",   // row1 col 7,8,9
+  "s","d","f",   // row2 col 2,3,4
+  "j","k","l",   // row2 col 7,8,9
+  "x","c","v",   // row3 col 2,3,4
+  "m",",","."    // row3 col 7,8,9
+];
+
+function renderKey(key) {
+  const k = key.toLowerCase();
+  const div = document.createElement('div');
+  div.className = 'key';
+  if (blueZoneKeys.includes(k)) div.classList.add('blue-zone');
+  div.id = `ppkey-${k}`;
+  return div;
+}
+
+function initPlusKbd() {
+  [row1, row2, row3].forEach((r, i) => {
+    const rowEl = document.getElementById(`pp-row${i+1}`);
+    r.forEach((k, idx) => {
+      rowEl.appendChild(renderKey(k));
+      if (idx === 4) {
+        const spacer = document.createElement('div');
+        spacer.className = 'spacer';
+        rowEl.appendChild(spacer);
+      }
+    });
+  });
+}
+
+function updatePlusKbdUI() {
+  const allKeys = [...row1, ...row2, ...row3];
+  allKeys.forEach(k => {
+    const el = document.getElementById(`ppkey-${k}`);
+    if (!el) return;
+    el.classList.remove('plus-active','multi','vowel-plus','special-plus','subtle','func','blue-zone');
+    if (blueZoneKeys.includes(k)) el.classList.add('blue-zone');
+
+    let label = k.toUpperCase();
+    if (stepMapRow[k])  { label = stepMapRow[k][0]; }
+    else if (nasalKeys[k]) { label = nasalKeys[k]; }
+    else if (k === 'p') { label = "+"; el.classList.add('plus-active'); }
+
+    if (['o',';'].includes(k)) { label = ""; }
+    else if (plusVowels[k])   { label = plusVowels[k];   el.classList.add('vowel-plus'); }
+    else if (plusSpecials[k]) { label = plusSpecials[k]; el.classList.add('special-plus'); }
+
+    el.innerText = label;
+  });
+}
+
+initPlusKbd();
+
+// ── 상태 ──────────────────────────────────────────────────
+const editor = document.getElementById('editor');
+let state = {
+  activeBase:null, currentIndex:0,
+  lastTapKey:null, tapIndex:0,
+  isPlusMode:false,
+  pendingE:false, pendingStep:false, pendingStepE:false
+};
+const ZWNJ = "\u200C", VIRAMA = "\u1039";
+const getText = () => editor.innerText;
+const setText = t  => { editor.innerText = t; };
+
+// ── 커서 위치 측정 ────────────────────────────────────────
+// editor의 마지막에 임시 span을 삽입해 getBoundingClientRect()로 좌표를 얻음
+function getCaretRect() {
+  const marker = document.createElement('span');
+  marker.textContent = '\u200B';
+  editor.appendChild(marker);
+  const rect = marker.getBoundingClientRect();
+  editor.removeChild(marker);
+  return rect;
+}
+
+// ── 스텝맵 내비 ───────────────────────────────────────────
+const stepNav = document.getElementById('step-nav');
+
+function showStepNav() {
+  if (!state.activeBase || !stepMapRow[state.activeBase]) { hideStepNav(); return; }
+  const group = stepMapRow[state.activeBase];
+  const idx   = state.currentIndex;
+
+  // 셀 재구성 (항상 그룹 전체, 현재 위치만 파란 하이라이트)
+  stepNav.innerHTML = '';
+  group.forEach((ch, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'snav-cell' + (i === idx ? ' active' : '');
+    cell.textContent = ch;
+    stepNav.appendChild(cell);
+  });
+
+  const rect = getCaretRect();
+  const cellW = 37; // 36px + 1px 보더
+  const navW  = group.length * cellW;
+  const navH  = 37;
+
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+
+  // 화면 밖 보정
+  if (left + navW > window.innerWidth  - 8) left = window.innerWidth  - navW - 8;
+  if (top  + navH > window.innerHeight - 4) top  = rect.top - navH - 6;
+  if (left < 4) left = 4;
+
+  stepNav.style.left = left + 'px';
+  stepNav.style.top  = top  + 'px';
+  stepNav.classList.add('visible');
+}
+
+function hideStepNav() { stepNav.classList.remove('visible'); }
+
+// ── Plus 팝업 ─────────────────────────────────────────────
+const plusPopup = document.getElementById('plus-popup');
+
+function showPlusPopup() {
+  updatePlusKbdUI();
+  const rect = getCaretRect();
+  // 키맵 실제 렌더 크기: 850px × 0.48 scale ≈ 408px wide, 3행×(65+8)px×0.48 ≈ 105px tall
+  const popW = 850 * 0.48 + 20;
+  const popH = 3 * 73 * 0.48 + 20;
+  let left = rect.left;
+  let top  = rect.bottom + 8;
+  if (left + popW > window.innerWidth  - 8) left = window.innerWidth  - popW - 8;
+  if (top  + popH > window.innerHeight - 8) top  = rect.top - popH - 8;
+  if (left < 4) left = 4;
+  plusPopup.style.left = left + 'px';
+  plusPopup.style.top  = top  + 'px';
+  plusPopup.classList.add('visible');
+}
+
+function hidePlusPopup() { plusPopup.classList.remove('visible'); }
+
+// ── 키 입력 처리 ──────────────────────────────────────────
+function handleInput(key) {
+  const k = key.toLowerCase();
+  let t = getText();
+
+  if (k === "backspace") {
+    if (state.pendingStepE) {
+      setText(t.slice(0,-2)); state.pendingStepE = false; state.lastTapKey = null;
+    } else if (state.pendingStep) {
+      setText(t.slice(0,-1)); state.pendingStep = false; state.pendingE = true;
+      state.lastTapKey = "j"; state.tapIndex = 0;
+    } else if (state.pendingE) {
+      setText(t.endsWith(ZWNJ+"ေ") ? t.slice(0,-2) : t.slice(0,-1));
+      state.pendingE = false; state.lastTapKey = null;
+    } else {
+      setText(t.slice(0,-1));
+    }
+    resetStep(); afterInput(); return;
+  }
+
+  if (k === 'p') {
+    if (state.pendingStepE) { setText(t.slice(0,-2)); state.pendingStepE = false; }
+    resetStep();
+    state.isPlusMode = !state.isPlusMode;
+    afterInput(); return;
+  }
+
+  if (state.isPlusMode) {
+    if (['o',';'].includes(k)) return;
+    if (plusSpecials[k])     setText(getText() + plusSpecials[k]);
+    else if (stepMapRow[k])  { setText(getText() + VIRAMA + stepMapRow[k][0]); state.activeBase = k; state.currentIndex = 0; }
+    else if (nasalKeys[k])   setText(getText() + VIRAMA + nasalKeys[k]);
+    else if (plusVowels[k])  setText(getText() + plusVowels[k]);
+    state.isPlusMode = false;
+    afterInput(); return;
+  }
+
+  if (state.pendingStepE && k !== "j") {
+    state.pendingStepE = false; state.pendingStep = false;
+    state.pendingE = true; t = getText();
+  }
+
+  if (stepMapRow[k] || nasalKeys[key]) {
+    let char = stepMapRow[k] ? stepMapRow[k][0] : nasalKeys[key];
+    if (state.pendingE) {
+      let base = t.endsWith(ZWNJ+"ေ") ? t.slice(0,-2) : t.slice(0,-1);
+      setText(base + char + "ေ");
+      state.pendingE = false; state.pendingStep = true;
+      state.lastTapKey = null; state.tapIndex = 0;
+    } else {
+      setText(t + char);
+      state.pendingStep = false; state.pendingE = false;
+      state.lastTapKey = null; state.tapIndex = 0;
+    }
+    if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; }
+    else resetStep();
+
+  } else if ((k==='u'||k==='o') && state.activeBase) {
+    const group = stepMapRow[state.activeBase];
+    const tIdx  = state.currentIndex + (k==='u' ? 1 : 2);
+    if (group && group[tIdx]) {
+      let cur = getText();
+      setText(state.pendingStep
+        ? cur.slice(0,-2) + group[tIdx] + "ေ"
+        : cur.slice(0,-1) + group[tIdx]);
+      state.currentIndex = tIdx;
+      state.lastTapKey = null; state.tapIndex = 0;
+    }
+
+  } else if (multiTapMap[k]) {
+    if (state.lastTapKey===k && state.tapIndex < multiTapMap[k].length-1) {
+      state.tapIndex++;
+      let val = multiTapMap[k][state.tapIndex];
+      if (k==="." && state.pendingStep) setText(getText().slice(0,-2)+val+"ေ");
+      else setText(getText().slice(0,-1)+val);
+      if (k!=="j") { resetStep(); state.pendingStep = false; }
+    } else {
+      state.lastTapKey = k; state.tapIndex = 0;
+      let val = multiTapMap[k][0];
+      if (k==="j") {
+        setText(getText()+ZWNJ+val);
+        state.pendingE = true; state.pendingStep = false; resetStep();
+      } else if (k==="." && state.pendingStep) {
+        setText(getText().slice(0,-1)+val+"ေ");
+      } else {
+        setText(getText()+val);
+        resetStep(); state.pendingStep = false;
+      }
+    }
+
+  } else {
+    if (k==='u'||k==='o') return;
+    if (k==='enter') { setText(t+'\n'); resetState(); afterInput(); return; }
+    setText(t+key); resetState();
+  }
+
+  afterInput();
+}
+
+function afterInput() {
+  editor.scrollTop = editor.scrollHeight;
+  requestAnimationFrame(() => {
+    if (state.isPlusMode) {
+      hideStepNav();
+      showPlusPopup();
+    } else {
+      hidePlusPopup();
+      if (state.activeBase) showStepNav();
+      else hideStepNav();
+    }
+  });
+}
+
+const ignoredKeys = new Set([
+  'shift','control','alt','meta','capslock','tab','escape',
+  'arrowleft','arrowright','arrowup','arrowdown',
+  'f1','f2','f3','f4','f6','f7','f8','f9','f10','f11'
+]);
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (ignoredKeys.has(k)) return;
+  handleInput(k);
+  if (k!=='f5' && k!=='f12') e.preventDefault();
+});
+
+function resetStep()  { state.activeBase = null; state.currentIndex = 0; }
+function resetState() { resetStep(); state.lastTapKey=null; state.tapIndex=0; state.isPlusMode=false; }
+
+function resetEditor() {
+  setText(''); resetState(); hideStepNav(); hidePlusPopup();
+}
+
+function goToBoard() {
+  const content = getText().trim();
+  if (!content) { alert('မည်သည့်စာမျှ မရေးရသေးပါ။'); return; }
+  location.href = `board.html?from=pc&content=${encodeURIComponent(content)}`;
+}
+</script>
+</body>
+</html>

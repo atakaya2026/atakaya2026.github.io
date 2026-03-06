@@ -95,6 +95,16 @@ const layout3x8 = [
 ];
 
 const ZWNJ = "\u200C";
+const MYANMAR_DIACRITICS = new Set([
+    0x1038, 0x1037, 0x1036,
+    0x102C, 0x102B,
+    0x102D, 0x102E, 0x1032,
+    0x102F, 0x1030,
+    0x103A,
+    0x103C, 0x103B,
+    0x103E, 0x103D,
+]);
+
 const VIRAMA = "\u1039";
 
 // state 설명:
@@ -192,6 +202,18 @@ function render() {
 
 function scrollToEnd() { editor.scrollTop = editor.scrollHeight; }
 
+
+const BEFORE_E_SET = new Set([0x103C,0x103B,0x103E,0x103D,0x103A]);
+function analyzePendingStep(text) {
+    const eIdx = text.lastIndexOf("ေ");
+    if (eIdx === -1) return null;
+    const afterE = text.slice(eIdx + 1);
+    const beforePart = text.slice(0, eIdx);
+    let beEnd = beforePart.length;
+    while (beEnd > 0 && BEFORE_E_SET.has(beforePart.codePointAt(beEnd - 1))) beEnd--;
+    return { consonant: beforePart.slice(0, beEnd), beforeE: beforePart.slice(beEnd), afterE };
+}
+
 function handleInput(key) {
     const k = key.toLowerCase();
     let t = getText();
@@ -199,29 +221,28 @@ function handleInput(key) {
     // ── 백스페이스 ──────────────────────────────────────────
     if (k === "bs") {
         if (state.pendingStepE) {
-            // pendingStep 중 j 대기 상태 → 임시 ZWNJ+ေ 제거, pendingStep으로 복귀
-            setText(t.slice(0, -2)); // ZWNJ+ေ 제거
+            setText(t.slice(0, -2));
             state.pendingStepE = false;
-            state.lastTapKey = null;
-        } else if (state.pendingStep && state.lastTapKey && ![".", "m", "k"].includes(state.lastTapKey)) {
-            // 자음+ေ+부호(ာ/ါ/ိ/ီ/ဲ/ု/ူ/်/ံ/း/့) → 부호만 제거, pendingStep 유지
-            setText(t.slice(0, -1));
-            state.lastTapKey = null; state.tapIndex = 0;
-            // pendingStep은 유지
+            state.pendingStep = true;
         } else if (state.pendingStep) {
-            // 자음+ေ → ေ 제거, pendingE로 복귀
-            setText(t.slice(0, -1));
-            state.pendingStep = false;
-            state.pendingE = true;
-            state.lastTapKey = "j"; state.tapIndex = 0;
+            const ps = analyzePendingStep(t);
+            if (ps && ps.afterE.length > 0) {
+                setText(t.slice(0, -1));
+            } else if (ps && ps.beforeE.length > 0) {
+                setText(ps.consonant + "ေ");
+            } else {
+                const eIdx = t.lastIndexOf("ေ");
+                setText(t.slice(0, eIdx - 1) + "ေ");
+                state.pendingStep = false;
+                state.pendingE = true;
+            }
         } else if (state.pendingE) {
-            // ZWNJ+ေ 제거
             setText(t.endsWith(ZWNJ + "ေ") ? t.slice(0, -2) : t.slice(0, -1));
             state.pendingE = false;
-            state.lastTapKey = null;
         } else {
             setText(t.slice(0, -1));
         }
+        state.lastTapKey = null; state.tapIndex = 0;
         resetStep(); render(); scrollToEnd(); return;
     }
 
@@ -237,9 +258,12 @@ function handleInput(key) {
         let charToStack = stepMapRow[k] ? stepMapRow[k][0] : nasalKeys[key];
         if (charToStack) {
             if (state.pendingStep) {
-                // 자음+ေ 상태: ေ를 뒤로 빼고 스택 결합 → 자음+္+스택자음+ေ
+                // 자음+[부호]+ေ 상태: ေ와 그 앞 beforeE 부호까지 빼고 스택 결합
+                // beforeE 부호(ွ/ှ/ြ/ျ)가 붙으면 자음+부호+ေ → 부호+ေ가 2글자
                 let cur = getText();
-                setText(cur.slice(0, -1) + VIRAMA + charToStack + "ေ");
+                const beforeE = [".", "m", "k"];
+                const stripCount = (state.lastTapKey && beforeE.includes(state.lastTapKey)) ? 2 : 1;
+                setText(cur.slice(0, -stripCount) + VIRAMA + charToStack + "ေ");
             } else {
                 setText(getText() + VIRAMA + charToStack);
             }
@@ -315,16 +339,19 @@ function handleInput(key) {
             if (state.pendingStep) {
                 let cur = getText();
                 if (beforeE_keys.includes(k)) {
-                    // 자음+이전부호+ေ → 자음+새부호+ေ
-                    setText(cur.slice(0, -2) + val + "ေ");
+                    // ေ 앞 이전 부호 교체
+                    const eIdx = cur.lastIndexOf("ေ");
+                    const afterE = cur.slice(eIdx + 1);
+                    setText(cur.slice(0, eIdx - 1) + val + "ေ" + afterE);
                 } else {
-                    // 자음+ေ+이전부호 → 자음+ေ+새부호
+                    // ေ 뒤 이전 부호 교체
                     setText(cur.slice(0, -1) + val);
                 }
             } else {
                 setText(getText().slice(0, -1) + val);
             }
-            if (k !== "j") { resetStep(); state.pendingStep = false; }
+            if (k !== "j") { resetStep(); }
+            // pendingStep은 유지 (ေ 결합 상태 계속)
         } else {
             // 첫 탭 또는 다른 키에서 전환
             state.lastTapKey = k; state.tapIndex = 0;
@@ -339,10 +366,13 @@ function handleInput(key) {
             } else if (state.pendingStep) {
                 let cur = getText();
                 if (beforeE_keys.includes(k)) {
-                    // ေ 앞에 붙는 부호: 자음+ေ → 자음+부호+ေ 재조립
-                    setText(cur.slice(0, -1) + val + "ေ");
+                    // ေ 앞에 붙는 부호: ေ 위치 찾아서 앞에 삽입
+                    // ေ 뒤에 이미 부호가 붙어있어도 올바르게 처리
+                    const eIdx = cur.lastIndexOf("ေ");
+                    const afterE = cur.slice(eIdx + 1); // ေ 뒤 부호들
+                    setText(cur.slice(0, eIdx) + val + "ေ" + afterE);
                 } else {
-                    // ေ 뒤에 붙는 부호: 자음+ေ 뒤에 그냥 추가
+                    // ေ 뒤에 붙는 부호: 그냥 추가
                     setText(cur + val);
                 }
                 resetStep();

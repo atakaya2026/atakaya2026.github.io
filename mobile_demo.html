@@ -203,7 +203,7 @@ function handleInput(key) {
             setText(t.slice(0, -2)); // ZWNJ+ေ 제거
             state.pendingStepE = false;
             state.lastTapKey = null;
-        } else if (state.pendingStep && state.lastTapKey && ![".", "m"].includes(state.lastTapKey)) {
+        } else if (state.pendingStep && state.lastTapKey && ![".", "m", "k"].includes(state.lastTapKey)) {
             // 자음+ေ+부호(ာ/ါ/ိ/ီ/ဲ/ု/ူ/်/ံ/း/့) → 부호만 제거, pendingStep 유지
             setText(t.slice(0, -1));
             state.lastTapKey = null; state.tapIndex = 0;
@@ -306,7 +306,7 @@ function handleInput(key) {
         //   자음 + ြ/ျ(.) + ှ/ွ(m) + ေ(j) + ာ/ါ(l) + ိ/ီ/ဲ(i) + ု/ူ(,) + ်/ံ(k) + း/့(;)
         // beforeE_keys: ေ 앞에 재조립 필요한 키 (자음+부호+ေ)
         // 그 외(l, i, ,, k, ;): ေ 뒤에 추가 (자음+ေ+부호)
-        const beforeE_keys = [".", "m"];
+        const beforeE_keys = [".", "m", "k"];
 
         if (state.lastTapKey === k && state.tapIndex < multiTapMap[k].length - 1) {
             // 연속 탭 → 다음 값으로 교체 (마지막 글자만 교체)

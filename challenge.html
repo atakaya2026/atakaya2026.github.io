@@ -315,7 +315,7 @@ function handleInput(key) {
   if (k === "backspace") {
     if (state.pendingStepE) {
       setText(t.slice(0,-2)); state.pendingStepE = false; state.lastTapKey = null;
-    } else if (state.pendingStep && state.lastTapKey && ![".", "m"].includes(state.lastTapKey)) {
+    } else if (state.pendingStep && state.lastTapKey && ![".", "m", "k"].includes(state.lastTapKey)) {
       // 자음+ေ+부호(ာ/ါ/ိ/ီ/ဲ/ု/ူ/်/ံ/း/့) → 부호만 제거, pendingStep 유지
       setText(t.slice(0,-1)); state.lastTapKey = null; state.tapIndex = 0;
     } else if (state.pendingStep) {
@@ -398,7 +398,7 @@ function handleInput(key) {
     //   자음 + ြ/ျ(.) + ှ/ွ(m) + ေ(j) + ာ/ါ(l) + ိ/ီ/ဲ(i) + ု/ူ(,) + ်/ံ(k) + း/့(;)
     // beforeE_keys: ေ 앞에서 재조립 (자음+부호+ေ)
     // 그 외(l,i,,,k,;): ေ 뒤에 추가 (자음+ေ+부호)
-    const beforeE_keys = [".", "m"];
+    const beforeE_keys = [".", "m", "k"];
 
     if (state.lastTapKey===k && state.tapIndex < multiTapMap[k].length-1) {
       state.tapIndex++;

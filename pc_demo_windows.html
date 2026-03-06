@@ -328,10 +328,20 @@ function handleInput(key) {
     if (plusSpecials[k]) {
         setText(getText() + plusSpecials[k]);
     } else if (stepMapRow[k]) {
-        setText(getText() + VIRAMA + stepMapRow[k][0]);
+        if (state.pendingStep) {
+            let cur = getText();
+            setText(cur.slice(0, -1) + VIRAMA + stepMapRow[k][0] + "ေ");
+        } else {
+            setText(getText() + VIRAMA + stepMapRow[k][0]);
+        }
         state.activeBase = k; state.currentIndex = 0;
     } else if (nasalKeys[k]) {
-        setText(getText() + VIRAMA + nasalKeys[k]);
+        if (state.pendingStep) {
+            let cur = getText();
+            setText(cur.slice(0, -1) + VIRAMA + nasalKeys[k] + "ေ");
+        } else {
+            setText(getText() + VIRAMA + nasalKeys[k]);
+        }
     } else if (plusVowels[k]) {
         setText(getText() + plusVowels[k]);
     }

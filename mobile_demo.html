@@ -236,7 +236,13 @@ function handleInput(key) {
     if (state.isPlusMode) {
         let charToStack = stepMapRow[k] ? stepMapRow[k][0] : nasalKeys[key];
         if (charToStack) {
-            setText(getText() + VIRAMA + charToStack);
+            if (state.pendingStep) {
+                // 자음+ေ 상태: ေ를 뒤로 빼고 스택 결합 → 자음+္+스택자음+ေ
+                let cur = getText();
+                setText(cur.slice(0, -1) + VIRAMA + charToStack + "ေ");
+            } else {
+                setText(getText() + VIRAMA + charToStack);
+            }
             resetStep();
             if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; }
         } else if (plusVowels[k]) {

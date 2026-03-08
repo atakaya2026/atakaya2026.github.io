@@ -117,12 +117,14 @@ const VIRAMA = "\u1039";
 let state = {
     activeBase: null,
     currentIndex: 0,
+    uIndex: 0,   // near키 독립 카운터
+    oIndex: 0,   // away키 독립 카운터
     lastTapKey: null,
     tapIndex: 0,
     isPlusMode: false,
     pendingE: false,
     pendingStep: false,
-    pendingStepE: false  // pendingStep 중 j 1탭 임시 대기
+    pendingStepE: false
 };
 
 const editor = document.getElementById('editor');
@@ -143,9 +145,45 @@ function render() {
             if (!state.isPlusMode && (k === 'u' || k === 'o')) {
                 keyDiv.style.backgroundColor = "#fff9c4"; 
                 const group = state.activeBase ? stepMapRow[state.activeBase] : null;
-                const targetIdx = state.currentIndex + (k === 'u' ? 1 : 2);
-                if (group && group[targetIdx]) keyDiv.innerText = group[targetIdx];
-                else keyDiv.innerText = k === 'u' ? '➞' : '➞➞';
+                const isLongRow = group && group.length >= 5;
+                if (k === 'u') {
+                    // near: 다음 uIndex 글자 표시, q행이면 2개
+                    const nextU = state.uIndex + 1 < (group ? group.length : 0) ? state.uIndex + 1 : 1;
+                    if (group && group[nextU]) {
+                        if (isLongRow && group[nextU + 1]) {
+                            const container = document.createElement('div');
+                            container.className = 'label-container';
+                            [group[nextU], group[nextU + 1]].forEach(c => {
+                                const s = document.createElement('span');
+                                s.className = 'sub-label'; s.innerText = c;
+                                container.appendChild(s);
+                            });
+                            keyDiv.appendChild(container);
+                        } else {
+                            keyDiv.innerText = group[nextU];
+                        }
+                    } else {
+                        keyDiv.innerText = '➞';
+                    }
+                } else {
+                    // away: 다음 oIndex 글자 표시
+                    const jumpTo = isLongRow ? 3 : 2;
+                    const nextO = state.oIndex < jumpTo ? jumpTo : (state.oIndex + 1 < (group ? group.length : 0) ? state.oIndex + 1 : jumpTo);
+                    if (group && group[nextO]) {
+                        // 다음 글자와 그 다음 글자 함께 표시
+                        const container = document.createElement('div');
+                        container.className = 'label-container';
+                        const chars = group[nextO + 1] ? [group[nextO], group[nextO + 1]] : [group[nextO]];
+                        chars.forEach(c => {
+                            const s = document.createElement('span');
+                            s.className = 'sub-label'; s.innerText = c;
+                            container.appendChild(s);
+                        });
+                        keyDiv.appendChild(container);
+                    } else {
+                        keyDiv.innerText = '➞➞';
+                    }
+                }
             } else if (state.isPlusMode && (k === 'o' || k === ';' || k === '.')) {
                 keyDiv.innerText = "USER"; keyDiv.style.fontSize = "10px";
             } else if (state.isPlusMode && plusVowels[k]) {
@@ -305,17 +343,30 @@ function handleInput(key) {
             state.lastTapKey = null; state.tapIndex = 0;
         }
 
-        if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; }
+        if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; state.uIndex = 0; state.oIndex = 0; }
         else resetStep();
 
-    // ── u/o: 스텝맵 이동 ─────────────────────────────────────
+    // ── u(near)/o(away): 스텝맵 이동 ────────────────────────
     } else if ((k === 'u' || k === 'o') && state.activeBase) {
         const group = stepMapRow[state.activeBase];
-        const targetIdx = state.currentIndex + (k === 'u' ? 1 : 2);
+        const isLongRow = group && group.length >= 5;
+        let targetIdx;
+        if (k === 'u') {
+            state.oIndex = 0;  // away 리셋
+            state.uIndex += 1;
+            if (state.uIndex >= group.length) state.uIndex = 1;
+            targetIdx = state.uIndex;
+        } else {
+            state.uIndex = 0;  // near 리셋
+            const jumpTo = isLongRow ? 3 : 2;
+            if (state.oIndex < jumpTo) state.oIndex = jumpTo;
+            else state.oIndex += 1;
+            if (state.oIndex >= group.length) state.oIndex = jumpTo;
+            targetIdx = state.oIndex;
+        }
         if (group && group[targetIdx]) {
             let cur = getText();
             if (state.pendingStep) {
-                // 자음+ေ 상태: 자음 교체, ေ 유지
                 setText(cur.slice(0, -2) + group[targetIdx] + "ေ");
             } else {
                 setText(cur.slice(0, -1) + group[targetIdx]);
@@ -400,7 +451,7 @@ function handleInput(key) {
     render();
 }
 
-function resetStep() { state.activeBase = null; state.currentIndex = 0; }
+function resetStep() { state.activeBase = null; state.currentIndex = 0; state.uIndex = 0; state.oIndex = 0; }
 function resetState() {
     resetStep();
     state.lastTapKey = null; state.tapIndex = 0;

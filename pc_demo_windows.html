@@ -46,12 +46,18 @@
     position: fixed;
     display: none;
     flex-direction: row;
+    gap: 8px;
     z-index: 9000;
     pointer-events: none;
-    border: 1px solid #bbb;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
   }
   #step-nav.visible { display: flex; }
+  .snav-group {
+    display: flex;
+    flex-direction: row;
+    border: 1px solid #bbb;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
   .snav-cell {
     width: 36px; height: 36px;
     display: flex; align-items: center; justify-content: center;
@@ -215,6 +221,7 @@ const blueZoneKeys = ["w", "e", "r", "s", "d", "f", "x", "c", "v", "u", "i", "o"
 
 let state = {
     activeBase: null, currentIndex: 0,
+    uIndex: 0, oIndex: 0,
     lastTapKey: null, tapIndex: 0,
     isPlusMode: false,
     pendingE: false,
@@ -269,9 +276,30 @@ function updateKbdUI() {
             if (['u','o'].includes(k)) el.classList.add('step-key');
             if (['t','y','g','h','b','n'].includes(k)) el.classList.add('subtle');
             if (k === 'u') {
-                label = "➞"; el.classList.add('func');
+                const group = state.activeBase ? stepMapRow[state.activeBase] : null;
+                const isLongRow = group && group.length >= 5;
+                const nextU = group ? (state.uIndex + 1 < group.length ? state.uIndex + 1 : 1) : 1;
+                if (group && group[nextU]) {
+                    if (isLongRow && group[nextU + 1]) {
+                        label = group[nextU] + " " + group[nextU + 1];
+                    } else {
+                        label = group[nextU];
+                    }
+                } else {
+                    label = "➞";
+                }
+                el.classList.add('func');
             } else if (k === 'o') {
-                label = "➞➞"; el.classList.add('func');
+                const group = state.activeBase ? stepMapRow[state.activeBase] : null;
+                const isLongRow = group && group.length >= 5;
+                const jumpTo = isLongRow ? 3 : 2;
+                const nextO = group ? (state.oIndex < jumpTo ? jumpTo : (state.oIndex + 1 < group.length ? state.oIndex + 1 : jumpTo)) : jumpTo;
+                if (group && group[nextO]) {
+                    label = group[nextO] + (group[nextO + 1] ? " " + group[nextO + 1] : "");
+                } else {
+                    label = "➞➞";
+                }
+                el.classList.add('func');
             } else if (multiTapMap[k]) {
                 label = multiTapMap[k].join(" "); el.classList.add('multi');
             }
@@ -398,17 +426,30 @@ function handleInput(key) {
             state.lastTapKey = null; state.tapIndex = 0;
         }
 
-        if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; }
+        if (stepMapRow[k]) { state.activeBase = k; state.currentIndex = 0; state.uIndex = 0; state.oIndex = 0; }
         else resetStep();
 
-    // ── u/o: 스텝맵 이동 ─────────────────────────────────────
+    // ── u(near)/o(away): 스텝맵 이동 ────────────────────────
     } else if ((k === 'u' || k === 'o') && state.activeBase) {
         const group = stepMapRow[state.activeBase];
-        const targetIdx = state.currentIndex + (k === 'u' ? 1 : 2);
+        const isLongRow = group && group.length >= 5;
+        let targetIdx;
+        if (k === 'u') {
+            state.oIndex = 0;
+            state.uIndex += 1;
+            if (state.uIndex >= group.length) state.uIndex = 1;
+            targetIdx = state.uIndex;
+        } else {
+            state.uIndex = 0;
+            const jumpTo = isLongRow ? 3 : 2;
+            if (state.oIndex < jumpTo) state.oIndex = jumpTo;
+            else state.oIndex += 1;
+            if (state.oIndex >= group.length) state.oIndex = jumpTo;
+            targetIdx = state.oIndex;
+        }
         if (group && group[targetIdx]) {
             let cur = getText();
             if (state.pendingStep) {
-                // 자음+ေ 상태: 자음 교체, ေ 유지
                 setText(cur.slice(0, -2) + group[targetIdx] + "ေ");
             } else {
                 setText(cur.slice(0, -1) + group[targetIdx]);
@@ -512,7 +553,7 @@ window.addEventListener('keyup', (e) => {
     if (el) el.classList.remove('active');
 });
 
-function resetStep() { state.activeBase = null; state.currentIndex = 0; }
+function resetStep() { state.activeBase = null; state.currentIndex = 0; state.uIndex = 0; state.oIndex = 0; }
 function resetState() { resetStep(); state.lastTapKey = null; state.tapIndex = 0; state.isPlusMode = false; }
 
 // ── 미니 내비 ──────────────────────────────────────────────
@@ -533,15 +574,34 @@ function showStepNav() {
     const idx = state.currentIndex;
 
     stepNav.innerHTML = '';
-    group.forEach((ch, i) => {
+    const isLongRow = group.length >= 5;
+    const awayStart = isLongRow ? 3 : 2;
+
+    const nearGroup = document.createElement('div');
+    nearGroup.className = 'snav-group';
+    group.slice(0, awayStart).forEach((ch, i) => {
         const cell = document.createElement('div');
         cell.className = 'snav-cell' + (i === idx ? ' active' : '');
         cell.textContent = ch;
-        stepNav.appendChild(cell);
+        nearGroup.appendChild(cell);
     });
+    stepNav.appendChild(nearGroup);
+
+    if (group.length > awayStart) {
+        const awayGroup = document.createElement('div');
+        awayGroup.className = 'snav-group';
+        group.slice(awayStart).forEach((ch, i) => {
+            const absIdx = i + awayStart;
+            const cell = document.createElement('div');
+            cell.className = 'snav-cell' + (absIdx === idx ? ' active' : '');
+            cell.textContent = ch;
+            awayGroup.appendChild(cell);
+        });
+        stepNav.appendChild(awayGroup);
+    }
 
     const rect = getCaretRect();
-    const navW = group.length * 37;
+    const navW = group.length * 37 + (group.length > awayStart ? 8 : 0);
     const navH = 37;
     let left = rect.left;
     let top  = rect.bottom + 6;

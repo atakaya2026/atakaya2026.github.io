@@ -17,6 +17,14 @@
     box-shadow: 0 -5px 40px rgba(0,0,0,0.5);
     overflow: hidden; position: relative;
   }
+  @media (max-width: 500px) {
+    #phone-wrap { width: 100%; box-shadow: none; }
+    html, body { background: #fff; }
+  }
+  @media (max-width: 500px) {
+    #phone-wrap { max-width: 100%; box-shadow: none; }
+    html, body { background: #fff; }
+  }
   #editor { 
     flex: 1; min-height: 0; width: 100%; background: #fff; padding: 20px; font-size: 32px; 
     border: none; box-sizing: border-box; white-space: pre-wrap; word-wrap: break-word; 
@@ -35,36 +43,50 @@
     50% { color: black; }
   }
   .keyboard-container {
+    position: relative; width: 100%; flex-shrink: 0; line-height: 0;
+  }
+  .keyboard-container > img.kbd-bg {
+    width: 100%; display: block; pointer-events: none;
+  }
+  .keyboard {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  }
+  /* 키 버튼 — 절대 위치로 배치 */
+  .key {
+    position: absolute;
+    background: transparent; border: none; margin: 0; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    font-size: clamp(14px, 3.2vw, 22px); font-weight: bold;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .key:active { opacity: 0.6; }
+  .base-key { color: #000; }
+  .plus-active { color: #2e7d32; }
+  .dark-func { color: #333; }
+  .plus-vowel-key { color: #7b1fa2; }
+  .label-container { display: flex; gap: 0; }
+  .sub-label { font-size: clamp(12px, 3.0vw, 20px); color: #000; font-weight: bold; }
+  /* 하단 바도 absolute */
+  .bottom-bar {
+    position: absolute; display: flex;
+  }
+  /* 플러스 모드: 하단 바가 이미지 위를 덮는 배경 */
+  .bottom-bar.plus-mode-bar {
     background: #bcbfc4;
-    width: 100%; box-sizing: border-box; border-top: 1px solid #999;
-    flex-shrink: 0;
-    aspect-ratio: 2000 / 1056;
-    display: flex; flex-direction: column; justify-content: center;
-    padding: 4px 5px;
   }
-  .keyboard { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(4, 1fr); gap: 4px; margin: 0 auto; width: 100%; height: 100%; }
-  .key { 
-    height: auto; aspect-ratio: unset; flex: 1;
-    background: #ffffff; border-radius: 6px; display: flex; 
-    justify-content: center; align-items: center; box-shadow: 0 3px 1px #888; 
-    cursor: pointer; user-select: none; font-size: 16px; font-weight: bold; 
+  .special-small {
+    flex: 1; display: flex; justify-content: center; align-items: center;
+    cursor: pointer; font-size: clamp(13px, 3.0vw, 20px); font-weight: bold;
+    background: transparent; border: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .key:active { transform: translateY(2px); box-shadow: none; }
-  .base-key { background: #e3f2fd !important; }
-  .plus-active { background: #a5d6a7 !important; border: 2px solid #66bb6a; }
-  .dark-func { background: #8e8e93 !important; color: #000; }
-  .plus-vowel-key { background: #f3e5f5 !important; } 
-  .special-small { 
-    grid-column: span 1; background: #e8f5e9 !important; height: auto; 
-    border-radius: 6px; display: flex; justify-content: center; align-items: center; 
-    box-shadow: 0 3px 1px #888; cursor: pointer; font-size: 16px; font-weight: bold; 
+  .btn-123, .btn-space, .btn-enter {
+    display: flex; justify-content: center; align-items: center;
+    cursor: pointer; font-weight: bold; background: transparent; border: none;
+    font-size: clamp(13px, 3.0vw, 20px);
+    -webkit-tap-highlight-color: transparent;
   }
-  .label-container { display: flex; gap: 4px; }
-  .sub-label { font-size: 16px; color: #000; font-weight: bold; } 
-  .bottom-bar { grid-column: span 8; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-top: 4px; width: 100%; }
-  .btn-123 { grid-column: span 2; background: #8e8e93; height: auto; border-radius: 6px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 1px #888; cursor: pointer; font-weight: bold; }
-  .btn-space { grid-column: span 4; background: #ffffff; height: auto; border-radius: 6px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 1px #888; cursor: pointer; font-weight: bold; font-size: 14px; }
-  .btn-enter { grid-column: span 2; background: #8e8e93; height: auto; border-radius: 6px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 1px #888; cursor: pointer; font-weight: bold; }
   #action-bar {
     display: flex; gap: 8px; padding: 8px 10px;
     background: #e5e7eb; border-bottom: 1px solid #ccc;
@@ -88,6 +110,7 @@
 </div>
 <div id="editor"></div>
 <div class="keyboard-container">
+  <img class="kbd-bg" src="images/keyboard.png" alt="">
   <div class="keyboard" id="kbd"></div>
 </div>
 
@@ -151,19 +174,27 @@ function setText(t) { editor.innerText = t; }
 function render() {
     const kbd = document.getElementById('kbd');
     kbd.innerHTML = '';
-    
-    layout3x8.forEach(row => {
-        row.forEach(key => {
+
+    // 이미지 분석 기반 행/열 위치 (%)
+    const ROWS = [3.0, 27.8, 52.5];
+    const ROW_H = 20.0;
+    const COLS = Array.from({length: 8}, (_, i) => 0.5 + i * (99 / 8));
+    const KEY_W = 99 / 8;
+
+    layout3x8.forEach((row, rIdx) => {
+        row.forEach((key, cIdx) => {
             const k = key.toLowerCase();
             const keyDiv = document.createElement('div');
             keyDiv.className = 'key';
+            keyDiv.style.left   = COLS[cIdx] + '%';
+            keyDiv.style.top    = ROWS[rIdx] + '%';
+            keyDiv.style.width  = KEY_W + '%';
+            keyDiv.style.height = ROW_H + '%';
             
             if (!state.isPlusMode && (k === 'u' || k === 'o')) {
-                keyDiv.style.backgroundColor = "#fff9c4"; 
                 const group = state.activeBase ? stepMapRow[state.activeBase] : null;
                 const isLongRow = group && group.length >= 5;
                 if (k === 'u') {
-                    // near: 다음 uIndex 글자 표시, q행이면 2개
                     const nextU = state.uIndex + 1 < (group ? group.length : 0) ? state.uIndex + 1 : 1;
                     if (group && group[nextU]) {
                         if (isLongRow && group[nextU + 1]) {
@@ -182,11 +213,9 @@ function render() {
                         keyDiv.innerText = '➞';
                     }
                 } else {
-                    // away: 다음 oIndex 글자 표시
                     const jumpTo = isLongRow ? 3 : 2;
                     const nextO = state.oIndex < jumpTo ? jumpTo : (state.oIndex + 1 < (group ? group.length : 0) ? state.oIndex + 1 : jumpTo);
                     if (group && group[nextO]) {
-                        // 다음 글자와 그 다음 글자 함께 표시
                         const container = document.createElement('div');
                         container.className = 'label-container';
                         const chars = group[nextO + 1] ? [group[nextO], group[nextO + 1]] : [group[nextO]];
@@ -207,7 +236,13 @@ function render() {
             } else if (multiTapMap[k]) {
                 const container = document.createElement('div');
                 container.className = 'label-container';
-                multiTapMap[k].forEach(c => {
+                multiTapMap[k].forEach((c, idx) => {
+                    if (idx > 0) {
+                        const sep = document.createElement('span');
+                        sep.innerHTML = '&#x200C;'; // ZWNJ
+                        sep.style.cssText = 'font-size:0.3em; opacity:0;';
+                        container.appendChild(sep);
+                    }
                     const s = document.createElement('span');
                     s.className = 'sub-label'; s.innerText = c;
                     container.appendChild(s);
@@ -218,7 +253,7 @@ function render() {
                 else {
                     if (stepMapRow[k]) keyDiv.classList.add('base-key');
                     if (k === 'p' && state.isPlusMode) keyDiv.classList.add('plus-active');
-                    let label = (stepMapRow[k] ? stepMapRow[k][0] : (nasalKeys[key] || (k==='p'?'+':key.toUpperCase())));
+                    let label = (stepMapRow[k] ? stepMapRow[k][0] : (nasalKeys[key] || (k==='p' ? (state.isPlusMode ? '×' : '+') : key.toUpperCase())));
                     keyDiv.innerText = label;
                 }
             }
@@ -229,25 +264,40 @@ function render() {
 
     const bottomBar = document.createElement('div');
     bottomBar.className = 'bottom-bar';
+    bottomBar.style.cssText = 'left:0.5%; top:77.0%; width:99%; height:20%;';
     if (state.isPlusMode) {
+        bottomBar.classList.add('plus-mode-bar');
+        bottomBar.style.cssText = 'left:0; top:77.0%; width:100%; height:23%;';
+        // 특수문자 6개 + enter 1개 = 7칸
+        const itemW = (100/7).toFixed(2);
         specialChars.forEach(char => {
             const div = document.createElement('div');
-            div.className = 'special-small'; div.innerText = char;
+            div.className = 'special-small';
+            div.style.cssText = `width:${itemW}%; height:100%;`;
+            div.innerText = char;
             div.onclick = () => { setText(getText() + char); state.isPlusMode = false; resetStep(); render(); scrollToEnd(); };
             bottomBar.appendChild(div);
         });
         const enter = document.createElement('div');
-        enter.className = 'btn-enter'; enter.innerText = '↵'; enter.style.color = '#000';
+        enter.className = 'btn-enter';
+        enter.style.cssText = `width:${itemW}%; height:100%;`;
+        enter.innerText = '↵'; enter.style.color = '#000';
         enter.onclick = () => { setText(getText() + '\n'); state.isPlusMode = false; resetStep(); render(); scrollToEnd(); };
         bottomBar.appendChild(enter);
     } else {
         const btn123 = document.createElement('div');
-        btn123.className = 'btn-123'; btn123.innerText = '၁၂၃'; btn123.style.color = '#000';
+        btn123.className = 'btn-123';
+        btn123.style.cssText = 'width:25%; height:100%;';
+        btn123.innerText = '၁၂၃'; btn123.style.color = '#000';
         const space = document.createElement('div');
-        space.className = 'btn-space'; space.innerText = 'ကွက်လပ်';
+        space.className = 'btn-space';
+        space.style.cssText = 'width:50%; height:100%;';
+        space.innerText = 'ကွက်လပ်';
         space.onclick = () => { setText(getText() + ' '); resetState(); render(); scrollToEnd(); };
         const enter = document.createElement('div');
-        enter.className = 'btn-enter'; enter.innerText = '↵'; enter.style.color = '#000';
+        enter.className = 'btn-enter';
+        enter.style.cssText = 'width:25%; height:100%;';
+        enter.innerText = '↵'; enter.style.color = '#000';
         enter.onclick = () => { setText(getText() + '\n'); resetState(); render(); scrollToEnd(); };
         bottomBar.appendChild(btn123); bottomBar.appendChild(space); bottomBar.appendChild(enter);
     }

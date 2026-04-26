@@ -263,7 +263,7 @@ function render() {
                 else {
                     if (stepMapRow[k]) keyDiv.classList.add('base-key');
                     if (k === 'p' && state.isPlusMode) keyDiv.classList.add('plus-active');
-                    let label = (stepMapRow[k] ? stepMapRow[k][0] : (nasalKeys[key] || (k==='p' ? (state.isPlusMode ? '×' : '+') : key.toUpperCase())));
+                    let label = (stepMapRow[k] ? stepMapRow[k][0] : (nasalKeys[key] || (k==='p' ? (state.isPlusMode ? '×' : '္...') : key.toUpperCase())));
                     keyDiv.innerText = label;
                 }
             }

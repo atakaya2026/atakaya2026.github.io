@@ -265,7 +265,7 @@ function updateKbdUI() {
         let label = k.toUpperCase();
         if (stepMapRow[k]) { label = stepMapRow[k][0]; el.classList.add('base-key'); }
         else if (nasalKeys[k]) { label = nasalKeys[k]; }
-        else if (k === 'p') { label = "+"; }
+        else if (k === 'p') { label = "္…"; }
 
         if (state.isPlusMode) {
             if (['o', ';'].includes(k)) { label = ""; }
